@@ -4,6 +4,7 @@ FROM $BASE_CONTAINER
 LABEL maintainer="Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"
 
 ARG USERNAME=feelpp
+ARG VERSION=1.0.6
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -39,9 +40,10 @@ RUN echo "*** install prerequisites for MagnetTools ***" && \
     apt-get -y --no-install-recommends install cmake git clang g++ gfortran curl dpkg-dev ca-certificates && \
     apt-get -y --no-install-recommends install libyaml-cpp-dev libjson-spirit-dev libgsl-dev libfreesteam-dev \
          libpopt-dev zlib1g-dev libeigen3-dev fadbad++ libgnuplot-iostream-dev \
-         libsphere-dev libsundials-dev libmatheval-dev && \
-    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3.8-venv python-is-python3 libpython3-dev swig libpq-dev
-# apt-get -y install python3-magnettools python3-mplcursors && \
+         libsphere-dev libsundials-dev libmatheval-dev libexpokit-dev && \
+    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev swig libpq-dev && \
+    apt-get -y install python3-numpy python3-matplotlib python3-mplcursors python3-tabulate python3-pandas
+# apt-get -y install python3-magnettools \
 # apt-get -y install python3-magnetsetup python3-magnetgeo python3-chevron
      
 
@@ -58,12 +60,12 @@ WORKDIR /home/$USERNAME
 
 # Install properly MagnetTools into poetry env
 RUN cd /home/${USERNAME} \
-    && curl -sSL https://install.python-poetry.org | python - \
+    && curl -sSL https://install.python-poetry.org | python - --version 1.1.15 \
     && poetry --version \
     && echo "get magnettools source" \
     && sudo apt-get update \
     && apt-get source magnettools \
-    && cd magnettools-1.0.5 \
+    && cd magnettools-${VERSION} \
     && mkdir -p build \
     && cd build \
     && cmake .. \
@@ -80,23 +82,23 @@ RUN cd /home/${USERNAME} \
     && cd MagnetTools
 
 # create MagneTools wheel package
-COPY setup.py /home/$USERNAME/magnettools-1.0.5/build/Python
+COPY setup.py /home/$USERNAME/magnettools-${VERSION}/build/Python
 COPY pyproject.toml /home/$USERNAME
 RUN sudo chown ${USERNAME} /home/$USERNAME/pyproject.toml \
-    && cd /home/$USERNAME/magnettools-1.0.5/build/Python/MagnetTools \
+    && cd /home/$USERNAME/magnettools-${VERSION}/build/Python/MagnetTools \
     && cp ../*.py . \
     && cp ../*.so . \
-    && cp /home/$USERNAME/magnettools-1.0.5/Python/*.py . \
+    && cp /home/$USERNAME/magnettools-${VERSION}/Python/*.py . \
     && cd .. \
     && python setup.py bdist_wheel \
     && cd /home/$USERNAME \
-    && find magnettools-1.0.5 -name \*.whl \
-    && poetry add magnettools-1.0.5/build/Python/dist/MagnetTools-0.1.0-py3-none-any.whl \
+    && find magnettools-${VERSION} -name \*.whl \
+    && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-0.1.0-py3-none-any.whl \
     && poetry run python -m MagnetTools.Bmap --help
     
 
 # RUN git clone https://github.com/remicaumette/python_magnetdb.git \
 #     && cd python_magnetdb \
-#     && poetry add ../magnettools-1.0.5/build/Python/dist/magnettools-0.1.0-py3-none-any.whl
+#     && poetry add ../magnettools-${VERSION}/build/Python/dist/magnettools-0.1.0-py3-none-any.whl
 
 WORKDIR /home/$USERNAME
