@@ -5,7 +5,7 @@ description = "Magnet Tools Python bindings"
 authors = ["Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 
 [tool.poetry.dev-dependencies]
 
