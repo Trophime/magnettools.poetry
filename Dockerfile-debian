@@ -60,7 +60,7 @@ WORKDIR /home/$USERNAME
 
 # Install properly MagnetTools into poetry env
 RUN cd /home/${USERNAME} \
-    && curl -sSL https://install.python-poetry.org | python - --version 1.1.15 \
+    && curl -sSL https://install.python-poetry.org | python - \
     && poetry --version \
     && poetry completions bash >> /home/${USERNAME}/.bash_completion \
     && echo "get magnettools source" \
@@ -83,16 +83,16 @@ RUN cd /home/${USERNAME} \
     && cd MagnetTools
 
 # create MagneTools wheel package
-COPY setup.py /home/${USERNAME}/magnettools-${VERSION}/build/Python
-COPY pyproject.toml /home/${USERNAME}
-RUN sudo chown ${USERNAME} /home/${USERNAME}/pyproject.toml \
-    && cd /home/${USERNAME}/magnettools-${VERSION}/build/Python/MagnetTools \
+COPY setup.py /home/$USERNAME/magnettools-${VERSION}/build/Python
+COPY pyproject.toml /home/$USERNAME
+RUN sudo chown ${USERNAME} /home/$USERNAME/pyproject.toml \
+    && cd /home/$USERNAME/magnettools-${VERSION}/build/Python/MagnetTools \
     && cp ../*.py . \
     && cp ../*.so . \
-    && cp /home/${USERNAME}/magnettools-${VERSION}/Python/*.py . \
+    && cp /home/$USERNAME/magnettools-${VERSION}/Python/*.py . \
     && cd .. \
     && python setup.py bdist_wheel \
-    && cd /home/${USERNAME} \
+    && cd /home/$USERNAME \
     && find magnettools-${VERSION} -name \*.whl \
     && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-0.1.0-py3-none-any.whl \
     && poetry run python -m MagnetTools.Bmap --help
