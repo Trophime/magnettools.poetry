@@ -1,10 +1,10 @@
-ARG BASE_CONTAINER=ubuntu:focal
-FROM $BASE_CONTAINER
+ARG from=ubuntu:focal
+FROM $from
 
 LABEL maintainer="Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"
 
 ARG USERNAME=feelpp
-ARG VERSION=1.0.7
+ARG VERSION=1.0.6
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,7 +29,10 @@ ENV LANG=en_US.UTF-8 \
     PATH=$PATH:/home/$USERNAME/.local/bin
 
 RUN apt-get -qq update && \
-    apt-get -y --no-install-recommends install debian-keyring lsb-release && \
+    apt-get -y upgrade && \
+    apt-get -y --no-install-recommends install debian-keyring lsb-release ca-certificates curl && \
+    apt-get -y --no-install-recommends install cmake git clang g++ gfortran dpkg-dev && \
+    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev swig libpq-dev && \
     cp /usr/share/keyrings/debian-maintainers.gpg /etc/apt/trusted.gpg.d
 
 RUN echo "lsb_release=$(lsb_release -cs)"
@@ -37,14 +40,9 @@ RUN echo "*** install prerequisites for MagnetTools ***" && \
     echo "deb http://euler.lncmig.local/~christophe.trophime@LNCMIG.local/debian/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/lncmi.list && \
     echo "deb-src http://euler.lncmig.local/~christophe.trophime@LNCMIG.local/debian/ $(lsb_release -cs) main" >> /etc/apt/sources.list.d/lncmi.list && \
     apt-get -qq update && \
-    apt-get -y --no-install-recommends install cmake git clang g++ gfortran curl dpkg-dev ca-certificates && \
     apt-get -y --no-install-recommends install libyaml-cpp-dev libjson-spirit-dev libgsl-dev libfreesteam-dev \
          libpopt-dev zlib1g-dev libeigen3-dev fadbad++ libgnuplot-iostream-dev \
-         libsphere-dev libsundials-dev libmatheval-dev libexpokit-dev && \
-    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev swig libpq-dev && \
-    apt-get -y install python3-numpy python3-matplotlib python3-mplcursors python3-tabulate python3-pandas
-# apt-get -y install python3-magnettools \
-# apt-get -y install python3-magnetsetup python3-magnetgeo python3-chevron
+         libsphere-dev libsundials-dev libmatheval-dev libexpokit-dev
      
 
 # ffmpeg for matplotlib anim & dvipng+cm-super for latex labels
@@ -60,7 +58,7 @@ WORKDIR /home/$USERNAME
 
 # Install properly MagnetTools into poetry env
 RUN cd /home/${USERNAME} \
-    && curl -sSL https://install.python-poetry.org | python - --version 1.2.2 \
+    && curl -sSL https://install.python-poetry.org | python -  \
     && poetry --version \
     && echo "get magnettools source" \
     && sudo apt-get update \
@@ -93,7 +91,7 @@ RUN sudo chown ${USERNAME} /home/$USERNAME/pyproject.toml \
     && python setup.py bdist_wheel \
     && cd /home/$USERNAME \
     && find magnettools-${VERSION} -name \*.whl \
-    && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-0.1.0-py3-none-any.whl \
+    && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-${VERSION}-py3-none-any.whl \
     && poetry run python -m MagnetTools.Bmap --help
     
 
