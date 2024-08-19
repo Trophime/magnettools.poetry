@@ -4,7 +4,7 @@ FROM $from
 LABEL maintainer="Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"
 
 ARG USERNAME=feelpp
-ARG VERSION=1.0.6
+ARG VERSION=1.0.7
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
