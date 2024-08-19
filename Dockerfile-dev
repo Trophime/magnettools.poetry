@@ -57,6 +57,7 @@ USER $USERNAME
 WORKDIR /home/$USERNAME
 
 # Install properly MagnetTools into poetry env
+# create MagneTools wheel package
 RUN cd /home/${USERNAME} \
     && curl -sSL https://install.python-poetry.org | python -  \
     && poetry --version \
@@ -70,33 +71,12 @@ RUN cd /home/${USERNAME} \
       -DMAGNETTOOLS_ENABLE_OPTIONALDEPS=ON \
       -DMAGNETTOOLS_ENABLE_PYTHON=ON \
       -DMAGNETTOOLS_PYTHON_VERSION=3 \
-      -DCMAKE_INSTALL_PREFIX=$PREFIX \
-      -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
-      -DCMAKE_INSTALL_INCLUDEDIR=$PREFIX/include \
     && make \
     && cd Python \
-    && echo "MagnetTools Python Bindings" > README.md \
-    && mkdir -p MagnetTools \
-    && cd MagnetTools
-
-# create MagneTools wheel package
-COPY setup.py /home/$USERNAME/magnettools-${VERSION}/build/Python
-COPY pyproject.toml /home/$USERNAME
-RUN sudo chown ${USERNAME} /home/$USERNAME/pyproject.toml \
-    && cd /home/$USERNAME/magnettools-${VERSION}/build/Python/MagnetTools \
-    && cp ../*.py . \
-    && cp ../*.so . \
-    && cp /home/$USERNAME/magnettools-${VERSION}/Python/*.py . \
-    && cd .. \
-    && python setup.py bdist_wheel \
+    && echo "MagnetTools Python Bindings" > magnettools/README.md \
     && cd /home/$USERNAME \
-    && find magnettools-${VERSION} -name \*.whl \
-    && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-${VERSION}-py3-none-any.whl \
-    && poetry run python -m MagnetTools.Bmap --help
+    && cp magnettools-${VERSION}/build/Python/dist/magnettools-${VERSION}-py3-none-any.whl \
+    && rm -rf magnettools-${VERSION} magnettools_${VERSION}*
     
-
-# RUN git clone https://github.com/remicaumette/python_magnetdb.git \
-#     && cd python_magnetdb \
-#     && poetry add ../magnettools-${VERSION}/build/Python/dist/magnettools-0.1.0-py3-none-any.whl
 
 WORKDIR /home/$USERNAME

@@ -1,10 +1,10 @@
-ARG BASE_CONTAINER=ubuntu:focal
-FROM $BASE_CONTAINER
+ARG from=ubuntu:focal
+FROM $from
 
 LABEL maintainer="Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"
 
 ARG USERNAME=feelpp
-ARG VERSION=1.0.7
+ARG VERSION=1.0.6
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -13,6 +13,12 @@ USER root
 RUN apt-get -qq update && \
     apt-get -y --no-install-recommends install sudo openssh-client
 
+# Seup demo environment variables
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PATH=$PATH:/home/$USERNAME/.local/bin
+
 # to help debug but shall not be present in prod
 RUN useradd -m -s /bin/bash -G sudo,video $USERNAME && \
     mkdir -p  /etc/sudoers.d/ && \
@@ -20,85 +26,76 @@ RUN useradd -m -s /bin/bash -G sudo,video $USERNAME && \
     chmod 0440 /etc/sudoers.d/$USERNAME && \
     mkdir -p ~$USERNAME/.ssh/ && \
     ssh-keyscan github.com >> ~$USERNAME/.ssh/known_hosts && \
-    chown -R $USERNAME ~$USERNAME/.ssh
-
-# Seup demo environment variables
-ENV LANG=en_US.UTF-8 \
-    LANGUAGE=en_US.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    PATH=$PATH:/home/$USERNAME/.local/bin
-
-RUN apt-get -qq update && \
-    apt-get -y --no-install-recommends install debian-keyring lsb-release && \
-    cp /usr/share/keyrings/debian-maintainers.gpg /etc/apt/trusted.gpg.d
-
-RUN echo "lsb_release=$(lsb_release -cs)"
-RUN echo "*** install prerequisites for MagnetTools ***" && \
+    chown -R $USERNAME ~$USERNAME/.ssh && \
+    # install pre-requisites \
+    apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get -y --no-install-recommends install debian-keyring lsb-release ca-certificates wget curl tree && \
+    apt-get -y --no-install-recommends install dpkg-dev bash-completion file coreutils && \
+    apt-get -y --no-install-recommends install python3 python3-venv python-is-python3 && \
+    apt-get -y --no-install-recommends install python3-setuptools python3-wheel && \
+    # ffmpeg for matplotlib anim & dvipng+cm-super for latex labels \
+    apt-get install -y --no-install-recommends ffmpeg dvipng cm-super && \
+    cp /usr/share/keyrings/debian-maintainers.gpg /etc/apt/trusted.gpg.d && \
+    echo "lsb_release=$(lsb_release -cs)" && \
+    echo "*** install prerequisites for MagnetTools ***" && \
     echo "deb http://euler.lncmig.local/~christophe.trophime@LNCMIG.local/debian/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/lncmi.list && \
     echo "deb-src http://euler.lncmig.local/~christophe.trophime@LNCMIG.local/debian/ $(lsb_release -cs) main" >> /etc/apt/sources.list.d/lncmi.list && \
-    apt-get -qq update && \
-    apt-get -y --no-install-recommends install cmake git clang g++ gfortran curl dpkg-dev ca-certificates && \
-    apt-get -y --no-install-recommends install libyaml-cpp-dev libjson-spirit-dev libgsl-dev libfreesteam-dev \
-         libpopt-dev zlib1g-dev libeigen3-dev fadbad++ libgnuplot-iostream-dev \
-         libsphere-dev libsundials-dev libmatheval-dev libexpokit-dev && \
-    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev swig libpq-dev && \
-    apt-get -y install python3-numpy python3-matplotlib python3-mplcursors python3-tabulate python3-pandas
-# apt-get -y install python3-magnettools \
-# apt-get -y install python3-magnetsetup python3-magnetgeo python3-chevron
-     
-
-# ffmpeg for matplotlib anim & dvipng+cm-super for latex labels
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg dvipng cm-super && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    cat /etc/apt/sources.list.d/lncmi.list && \
+    apt-get -qq update
 
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
 
+# create MagneTools wheel package
+COPY pyproject.toml /home/${USERNAME}
+COPY eps_params.dat /home/${USERNAME}
+COPY test.py /home/${USERNAME}
+COPY 2helix.d /home/${USERNAME}
+
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
+# Install poetry
+# poetry config virtualenvs.options.system-site-packages true
+RUN cd /home/${USERNAME} \
+    && curl -sSL https://install.python-poetry.org | python -  \
+    && poetry --version \
+    && poetry completions bash >> ~/.bash_completion
+
 # Install properly MagnetTools into poetry env
 RUN cd /home/${USERNAME} \
-    && curl -sSL https://install.python-poetry.org | python - --version 1.2.2 \
-    && poetry --version \
-    && echo "get magnettools source" \
-    && sudo apt-get update \
-    && apt-get source magnettools \
-    && cd magnettools-${VERSION} \
-    && mkdir -p build \
-    && cd build \
-    && cmake .. \
-      -DMAGNETTOOLS_ENABLE_OPTIONALDEPS=ON \
-      -DMAGNETTOOLS_ENABLE_PYTHON=ON \
-      -DMAGNETTOOLS_PYTHON_VERSION=3 \
-      -DCMAKE_INSTALL_PREFIX=$PREFIX \
-      -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
-      -DCMAKE_INSTALL_INCLUDEDIR=$PREFIX/include \
-    && make \
-    && cd Python \
+    && mkdir -p /home/${USERNAME}/magnettools/tests \
+    && cp pyproject.toml /home/${USERNAME}/magnettools \
+    && cp eps_params.dat /home/${USERNAME}/magnettools/tests \
+    && cp test.py /home/${USERNAME}/magnettools/tests \
+    && cp 2helix.d /home/${USERNAME}/magnettools/tests \
+    && cd /home/${USERNAME}/magnettools \
+    && ls -lrth \
+    && sudo apt -y install --no-install-recommends python3-magnettools python3-matplotlib \
+    && perl -pi -e "s|version = .*$|version = \"${VERSION}\"|" pyproject.toml \
+    && sudo chown -R ${USERNAME} /home/$USERNAME/magnettools \
     && echo "MagnetTools Python Bindings" > README.md \
-    && mkdir -p MagnetTools \
-    && cd MagnetTools
+    && cp -rp /usr/lib/python3/dist-packages/magnettools /home/$USERNAME/magnettools \
+    && sudo apt -y remove python3-magnettools
+#    && poetry install \
+#    && cd .. \
+        
+Run cd /home/$USERNAME \
+    && rm 2helix.d  eps_params.dat pyproject.toml  test.py
 
-# create MagneTools wheel package
-COPY setup.py /home/$USERNAME/magnettools-${VERSION}/build/Python
-COPY pyproject.toml /home/$USERNAME
-RUN sudo chown ${USERNAME} /home/$USERNAME/pyproject.toml \
-    && cd /home/$USERNAME/magnettools-${VERSION}/build/Python/MagnetTools \
-    && cp ../*.py . \
-    && cp ../*.so . \
-    && cp /home/$USERNAME/magnettools-${VERSION}/Python/*.py . \
-    && cd .. \
-    && python setup.py bdist_wheel \
-    && cd /home/$USERNAME \
-    && find magnettools-${VERSION} -name \*.whl \
-    && poetry add magnettools-${VERSION}/build/Python/dist/MagnetTools-0.1.0-py3-none-any.whl \
-    && poetry run python -m MagnetTools.Bmap --help
-    
+# perform cleanup
+USER root
+RUN apt-get -y autoclean && \
+    apt-get -y clean
 
-# RUN git clone https://github.com/remicaumette/python_magnetdb.git \
-#     && cd python_magnetdb \
-#     && poetry add ../magnettools-${VERSION}/build/Python/dist/magnettools-0.1.0-py3-none-any.whl
-
+USER $USERNAME
 WORKDIR /home/$USERNAME
+
+# to run test
+# docker run -it --rm magnettools:${VERSION}-bookworm-poetry
+# Once in the container, run:
+# cd /home/$USERNAME/magnettools \
+# poetry run python -m magnettools.Bmap --help
+# cd tests
+# poetry run python test.py
