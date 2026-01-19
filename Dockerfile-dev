@@ -11,6 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 USER root
 RUN apt-get -qq update && \
+    apt-get -y upgrade  && \
     apt-get -y --no-install-recommends install sudo openssh-client
 
 # to help debug but shall not be present in prod
@@ -64,6 +65,7 @@ RUN cd /home/${USERNAME} \
     && echo "get magnettools source" \
     && sudo apt-get update \
     && apt-get source magnettools \
+    && ls -lrth \
     && cd magnettools-${VERSION} \
     && mkdir -p build \
     && cd build \
@@ -73,10 +75,16 @@ RUN cd /home/${USERNAME} \
       -DMAGNETTOOLS_PYTHON_VERSION=3 \
     && make \
     && cd Python \
-    && echo "MagnetTools Python Bindings" > magnettools/README.md \
+    && make create_wheel \
+    && pwd \
+    && find . -name \*.whl \
     && cd /home/$USERNAME \
-    && cp magnettools-${VERSION}/build/Python/dist/magnettools-${VERSION}-py3-none-any.whl \
-    && rm -rf magnettools-${VERSION} magnettools_${VERSION}*
+    && ls -ltrh \
+    && cp magnettools-${VERSION}/build/Python/dist/magnettools-${VERSION}-cp311-cp311-linux_x86_64.whl /home/${USERNAME} \
+    && rm -rf /home/${USERNAME}/magnettools-${VERSION} /home/${USERNAME}/magnettools_${VERSION}*
     
+RUN sudo apt-get update \
+    && sudo apt-get install -y magnettools libmagnettools-dev \
+    && sudo apt-get clean
 
 WORKDIR /home/$USERNAME

@@ -21,7 +21,7 @@ For instance:
 ```
 docker build \
   --progress=plain --no-cache \
-  --build-arg from=debian:bookworm \
+  --build-arg from=debian:12 \
   --build-arg VERSION=1.1.0  \
   -f ./Dockerfile-dev \
   -t magnettools:bookworm-poetry .
