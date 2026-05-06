@@ -4,7 +4,9 @@ FROM $from
 LABEL maintainer="Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>"
 
 ARG USERNAME=feelpp
-ARG VERSION=1.0.6
+ARG VERSION=1.2.0
+ARG python_version=3.11
+ARG arch=linux_x86_64
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,7 +35,8 @@ RUN apt-get -qq update && \
     apt-get -y upgrade && \
     apt-get -y --no-install-recommends install debian-keyring lsb-release ca-certificates curl && \
     apt-get -y --no-install-recommends install cmake git clang g++ gfortran dpkg-dev && \
-    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev swig libpq-dev && \
+    apt-get -y --no-install-recommends install python3 python3-pip python3-setuptools python3-venv python-is-python3 libpython3-dev && \
+    apt-get -y --no-install-recommends install pybind11-dev python3-wheel python3-scikit-build-core && \
     cp /usr/share/keyrings/debian-maintainers.gpg /etc/apt/trusted.gpg.d
 
 RUN echo "lsb_release=$(lsb_release -cs)"
@@ -57,7 +60,12 @@ ENV DEBIAN_FRONTEND=dialog
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
-# Install properly MagnetTools into poetry env
+    
+RUN sudo apt-get update \
+    && sudo apt-get install -y magnettools libmagnettools-dev \
+    && sudo apt-get clean
+
+    # Install properly MagnetTools into poetry env
 # create MagneTools wheel package
 RUN cd /home/${USERNAME} \
     && curl -sSL https://install.python-poetry.org | python -  \
@@ -66,25 +74,22 @@ RUN cd /home/${USERNAME} \
     && sudo apt-get update \
     && apt-get source magnettools \
     && ls -lrth \
-    && cd magnettools-${VERSION} \
+    && cd magnettools-${VERSION}/Python \
     && mkdir -p build \
     && cd build \
     && cmake .. \
       -DMAGNETTOOLS_ENABLE_OPTIONALDEPS=ON \
       -DMAGNETTOOLS_ENABLE_PYTHON=ON \
       -DMAGNETTOOLS_PYTHON_VERSION=3 \
+    && find .. -name pyproject.toml\* \
     && make \
-    && cd Python \
-    && make create_wheel \
+    && make wheel \
     && pwd \
     && find . -name \*.whl \
     && cd /home/$USERNAME \
     && ls -ltrh \
-    && cp magnettools-${VERSION}/build/Python/dist/magnettools-${VERSION}-cp311-cp311-linux_x86_64.whl /home/${USERNAME} \
+    && pyver=$(echo ${python_version} | tr -d '.') \
+    && cp magnettools-${VERSION}/Python/build/dist/magnettools-${VERSION}-cp${pyver}-cp${pyver}-${arch}.whl /home/${USERNAME} \
     && rm -rf /home/${USERNAME}/magnettools-${VERSION} /home/${USERNAME}/magnettools_${VERSION}*
-    
-RUN sudo apt-get update \
-    && sudo apt-get install -y magnettools libmagnettools-dev \
-    && sudo apt-get clean
 
 WORKDIR /home/$USERNAME

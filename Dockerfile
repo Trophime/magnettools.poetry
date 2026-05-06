@@ -77,11 +77,8 @@ RUN cd /home/${USERNAME} \
     && sudo chown -R ${USERNAME} /home/$USERNAME/magnettools \
     && echo "MagnetTools Python Bindings" > README.md \
     && cp -rp /usr/lib/python3/dist-packages/magnettools /home/$USERNAME/magnettools \
-    && sudo apt -y remove python3-magnettools
-#    && poetry install \
-#    && cd .. \
-        
-Run cd /home/$USERNAME \
+    && sudo apt -y remove python3-magnettools \
+    && cd /home/${USERNAME} \
     && rm 2helix.d  eps_params.dat pyproject.toml  test.py
 
 # perform cleanup
